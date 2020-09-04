@@ -7,11 +7,10 @@ package speedy
 import java.util
 
 import com.daml.lf.data._
-import com.daml.lf.language.Ast
 import com.daml.lf.language.Ast._
 import com.daml.lf.speedy.SError.{DamlEArithmeticError, SError, SErrorCrash}
-import com.daml.lf.speedy.SResult.{SResultFinalValue, SResultError}
 import com.daml.lf.speedy.SExpr._
+import com.daml.lf.speedy.SResult.{SResultError, SResultFinalValue}
 import com.daml.lf.speedy.SValue._
 import com.daml.lf.testing.parser.Implicits._
 import com.daml.lf.value.Value
@@ -547,21 +546,9 @@ class SBuiltinTest extends FreeSpec with Matchers with TableDrivenPropertyChecks
 
     "Text binary operations computes proper results" in {
 
-      // a naive Unicode ordering for string
-      val unicodeOrdering =
-        Ordering.by((s: String) => s.codePoints().toArray.toIterable)
-
-      assert(Ordering.String.gt("｡", "😂"))
-      assert(unicodeOrdering.lt("｡", "😂"))
-
       val testCases = Table[String, (String, String) => Either[SError, SValue]](
         ("builtin", "reference"),
         ("APPEND_TEXT", (a, b) => Right(SText(a + b))),
-        ("LESS_EQ @Text", (a, b) => Right(SBool(unicodeOrdering.lteq(a, b)))),
-        ("GREATER_EQ @Text", (a, b) => Right(SBool(unicodeOrdering.gteq(a, b)))),
-        ("LESS @Text", (a, b) => Right(SBool(unicodeOrdering.lt(a, b)))),
-        ("GREATER @Text", (a, b) => Right(SBool(unicodeOrdering.gt(a, b)))),
-        ("EQUAL @Text", (a, b) => Right(SBool(a == b))),
       )
 
       forEvery(testCases) { (builtin, ref) =>
@@ -1309,7 +1296,7 @@ class SBuiltinTest extends FreeSpec with Matchers with TableDrivenPropertyChecks
         val builtin = e"""FROM_TEXT_INT64"""
 
         forEvery(testCases) { (input, output) =>
-          eval(Ast.EApp(builtin, Ast.EPrimLit(PLText(input())))) shouldEqual Right(
+          eval(EApp(builtin, EPrimLit(PLText(input())))) shouldEqual Right(
             SOptional(output),
           )
         }
@@ -1368,79 +1355,22 @@ class SBuiltinTest extends FreeSpec with Matchers with TableDrivenPropertyChecks
       }
     }
 
-    "handle ridiculously huge strings" ignore {
+    "handle ridiculously huge strings" in {
 
       val testCases = Table(
         "input" -> "output",
         (() => "1" * 10000000) -> None,
         (() => "1." + "0" * 10000000) -> Some(SNumeric(n(10, 1))),
         (() => "0" * 10000000 + "1.0") -> Some(SNumeric(n(10, 1))),
-        (() => "+0" * 10000000 + "2.0") -> Some(SNumeric(n(10, 2))),
-        (() => "-0" * 10000000 + "3.0") -> Some(SNumeric(n(10, -3))),
+        (() => "+" + "0" * 10000000 + "2.0") -> Some(SNumeric(n(10, 2))),
+        (() => "-" + "0" * 10000000 + "3.0") -> Some(SNumeric(n(10, -3))),
       )
       val builtin = e"""FROM_TEXT_NUMERIC @10"""
 
       forEvery(testCases) { (input, output) =>
-        eval(Ast.EApp(builtin, Ast.EPrimLit(Ast.PLText(input())))) shouldEqual Right(
+        eval(EApp(builtin, EPrimLit(PLText(input())))) shouldEqual Right(
           SOptional(output),
         )
-      }
-
-    }
-
-  }
-
-  "EQUAL @TypeRep" - {
-
-    val values = Table(
-      "values",
-      "(type_rep @Mod:T)",
-      "(type_rep @Mod:R)",
-      "(type_rep @Int64)",
-      "(type_rep @(Mod:Tree (List Text)))",
-      "(type_rep @((ContractId Mod:T) -> Mod:Color))",
-    )
-
-    "is reflexive" in {
-      forEvery(values)(v => {
-        val e = e"EQUAL @TypeRep $v $v"
-        eval(e) shouldEqual Right(SBool(true))
-      })
-    }
-
-    "works as expected" in {
-      forEvery(values)(v1 =>
-        forEvery(values)(v2 => eval(e"EQUAL @TypeRep $v1 $v2") shouldEqual Right(SBool(v1 == v2))),
-      )
-    }
-  }
-
-  "Debugging builtins" - {
-
-    "TRACE" - {
-      "is idempotent" in {
-        val testCases = Table[String, SValue](
-          "expression" -> "result",
-          "1" -> SInt64(1),
-          "1.00" -> SNumeric(n(2, 1)),
-          "True" -> SBool(true),
-          "()" -> SUnit,
-          """ "text" """ -> SText("text"),
-          " 'party' " -> SParty(Ref.Party.assertFromString("party")),
-          intList(1, 2, 3) -> SList(FrontStack(SInt64(1), SInt64(2), SInt64(3))),
-          " UNIX_DAYS_TO_DATE 1 " -> SDate(Time.Date.assertFromDaysSinceEpoch(1)),
-          """ TRACE "another message" (ADD_INT64 1 1)""" -> SInt64(2),
-        )
-
-        forEvery(testCases) { (exp, result) =>
-          eval(e"""TRACE "message" ($exp)""") shouldEqual Right(result)
-        }
-      }
-
-      "throws an expression if its argument throws one" in {
-        eval(e"""TRACE "message" 1""") shouldEqual Right(SInt64(1))
-        eval(e"""TRACE "message" (ERROR "error")""") shouldBe 'left
-        eval(e"""TRACE "message" (DIV_INT64 1 0)""") shouldBe 'left
       }
     }
 
@@ -1462,7 +1392,10 @@ object SBuiltinTest {
   private val pkg =
     p"""
         module Mod {
-          variant Either A B = Left : A | Right : B ;
+          variant Either a b = Left : a | Right : b ;
+          record MyUnit = { };
+          record Tuple a b = { fst: a, snd: b };
+          enum Color = Red | Green | Blue;
         }
 
     """
