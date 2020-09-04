@@ -1,3 +1,3 @@
 ASSERTION	AAIBAAIFAAAAAAAAAAAA
-RUN	simulation.StandardFixTradeSimulation	standardfixtradesimulation	1587679986754	, args: --ledger vdaml-stub:6865 --ia-ttl 120sec --spec --simulation fix-trade.standard --trade-file /home/dlt/app/spider-load-tests/data/cde7/20191205_Trades.txt --trade-timeout 30s --concurrency 20 --bmw-timeout 20sec --requests 10000 --loop-file	3.1.1
+RUN	simulation.StandardFixTradeSimulation	standardfixtradesimulation	1587679986754	, args: --ledger vdaml-stub:6865 --ia-ttl 120sec --spec --simulation fix-trade.standard --trade-file /home/dlt/app/abcdef-load-tests/data/cde7/20191205_Trades.txt --trade-timeout 30s --concurrency 20 --bmw-timeout 20sec --requests 10000 --loop-file	3.1.1
 REQUEST	1		fix-trade-sync	1587679987299	1587680007510	OK	ACK
