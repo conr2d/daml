@@ -24,7 +24,7 @@ class CreateCommand extends Simulation with SimulationConfig {
     .body(StringBody(jsonCommand))
 
   private val scn = scenario("CreateCommandScenario")
-    .repeat(10)(exec(request))
+    .repeat(1000)(exec(request))
 
   setUp(
     scn.inject(atOnceUsers(1))

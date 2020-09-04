@@ -29,6 +29,8 @@ object ConvertStats {
   def apply[S](implicit R: ConvertStats[S]): ConvertStats[S] = R
 }
 
+object SimulationLogConvertSyntax extends SimulationLogConvertSyntax
+
 trait SimulationLogConvertSyntax {
   implicit class SimulationLogConvertOps(val log: SimulationLog) {
     def parseStats[S: ConvertStats] = ConvertStats[S].parse(log)

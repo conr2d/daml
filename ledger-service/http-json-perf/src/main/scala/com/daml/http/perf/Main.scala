@@ -7,19 +7,21 @@ import java.io.File
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
+import com.daml.gatling.stats.{SimulationLog, SimulationLogConvertSyntax}
 import com.daml.grpc.adapter.{AkkaExecutionSequencerPool, ExecutionSequencerFactory}
 import com.daml.http.HttpServiceTestFixture.withHttpService
 import com.daml.http.domain.LedgerId
 import com.daml.http.perf.scenario.SimulationConfig
+import com.daml.http.util.FutureUtil._
 import com.daml.http.{EndpointsCompanion, HttpService}
 import com.daml.jwt.domain.Jwt
 import com.daml.scalautil.Statement.discard
 import com.typesafe.scalalogging.StrictLogging
 import io.gatling.core.scenario.Simulation
+import scalaz.std.scalaFuture._
 import scalaz.syntax.tag._
 import scalaz.{-\/, EitherT, \/, \/-}
-import scalaz.std.scalaFuture._
-import com.daml.http.util.FutureUtil._
+import scalaz.std.string._
 
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
@@ -120,10 +122,13 @@ object Main extends StrictLogging {
   ): Future[ExitCode] =
     withHttpService(ledgerId.unwrap, config.dars, None, None) { (uri, _, _, _) =>
       runGatlingScenario(config, uri.authority.host.address, uri.authority.port)
-        .map {
-          case (e, f) =>
-            generateReport(f)
-            e
+        .flatMap {
+          case (exitCode, dir) =>
+            toFuture(generateReport(dir))
+              .map { _ =>
+                logger.info(s"Report directory: ${dir.getAbsolutePath}")
+                exitCode
+              }
         }: Future[ExitCode]
     }
 
@@ -170,7 +175,14 @@ object Main extends StrictLogging {
       }
   }
 
-  private def generateReport(f: File): Unit = {
-    require(f.exists) // TODO
+  private def generateReport(dir: File): String \/ Unit = {
+    import SimulationLogConvertSyntax._
+
+    require(dir.isDirectory)
+
+    val logPath = new File(dir, "simulation.log")
+    val simulationLog = SimulationLog.fromFile(logPath)
+    simulationLog.foreach(_.writeSummary(dir))
+    simulationLog.map(_ => ())
   }
 }
