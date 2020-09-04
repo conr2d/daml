@@ -60,7 +60,11 @@ tests =
     testGroup "Create DAML App tests" [gettingStartedGuideTest projectName | not isWindows]
   where
     gettingStartedGuideTest projectName = testCaseSteps "Getting Started Guide" $ \step ->
-      withTempDir $ \tmpDir -> do
+      withTempDir $ \tmpDir' -> do
+        -- npm gets confused when the temp dir is not under /private on mac.
+        let tmpDir
+              | isMac = "/private" <> tmpDir'
+              | otherwise = tmpDir'
         step "Create app from template"
         withCurrentDirectory tmpDir $ do
           callCommandSilent $ "daml new " <> projectName <> " --template create-daml-app"
@@ -163,9 +167,12 @@ patchTsDependencies uiDir packageJsonFile = do
           let depNames = HMS.keys dependencies
           let patchedDeps =
                 HMS.fromList
-                  [ (depName, String $ T.pack $ "file:" <> uiDir </> libName)
+                  [ (depName, String $ T.pack $ "file:" <> libRelPath)
                   | tsLib <- allTsLibraries
                   , let libName = tsLibraryName tsLib
+                  , let libPath = uiDir </> libName
+                  , let libRelPath =
+                          makeRelative (takeDirectory packageJsonFile) libPath
                   , let depName = T.pack $ "@" <> replace "-" "/" libName
                   , depName `elem` depNames
                   ] `HMS.union`

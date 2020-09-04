@@ -23,6 +23,7 @@ import qualified Data.Text as T
 import System.Directory.Extra
 import System.Environment.Blank
 import System.FilePath
+import System.Info.Extra
 import System.IO.Extra
 import System.Process
 import Test.Tasty
@@ -180,7 +181,10 @@ main = withTempDir $ \npmCache -> do
         [ test getTools
         ]
   where
-    test getTools = testCaseSteps "Getting Started Guide" $ \step -> withTempDir $ \tmpDir -> do
+    test getTools = testCaseSteps "Getting Started Guide" $ \step -> withTempDir $ \tmpDir' -> do
+        let tmpDir
+              | isMac = "/private" <> tmpDir'
+              | otherwise = tmpDir'
         Tools{..} <- getTools
         setEnv "CI" "yes" True
         step "Create app from template"
@@ -258,13 +262,15 @@ patchTsDependencies uiDir packageJsonFile = do
                   ([ ( "@daml.js/create-daml-app"
                      , Aeson.String $
                        T.pack $
-                       "file:" <> uiDir </> "daml.js/create-daml-app-0.1.0")
+                       "file:" <> "./daml.js/create-daml-app-0.1.0")
                    | "@daml.js/create-daml-app" `elem` depNames
                    ] ++
-                   [ ( depName
-                     , Aeson.String $ T.pack $ "file:" <> uiDir </> libName)
+                   [ (depName, Aeson.String $ T.pack $ "file:" <> libRelPath)
                    | tsLib <- allTsLibraries
                    , let libName = tsLibraryName tsLib
+                   , let libPath = uiDir </> libName
+                   , let libRelPath =
+                           makeRelative (takeDirectory packageJsonFile) libPath
                    , let depName = T.replace "-" "/" $ T.pack $ "@" <> libName
                    , depName `elem` depNames
                    ]) `HMS.union`
