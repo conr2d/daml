@@ -22,7 +22,7 @@ object RunLikeGatling extends StrictLogging {
   def runWith(
       system: ActorSystem,
       overrides: ConfigOverrides,
-      simulation: Class[Simulation]
+      mbSimulation: Option[Class[Simulation]] = None
   ): Try[(Int, File)] = {
     logger.trace("Starting")
 
@@ -33,7 +33,7 @@ object RunLikeGatling extends StrictLogging {
     logger.trace("Configuration loaded")
 
     val runResult = Try {
-      Runner(system, configuration).run(Some(simulation))
+      Runner(system, configuration).run(mbSimulation)
     }
 
     runResult map { res =>

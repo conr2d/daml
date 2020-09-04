@@ -26,6 +26,7 @@ da_scala_library(
         "@maven//:ch_qos_logback_logback_classic",
     ],
     deps = [
+        "//libs-scala/gatling-utils",
         "//language-support/scala/bindings-akka",
         "//ledger-api/rs-grpc-bridge",
         "//ledger-service/http-json",
@@ -69,6 +70,7 @@ da_scala_binary(
     ],
     deps = [
         ":http-json-perf",
+        "//libs-scala/gatling-utils",
         "//language-support/scala/bindings-akka",
         "//ledger-api/rs-grpc-bridge",
         "//ledger-service/http-json",
